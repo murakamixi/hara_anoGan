@@ -285,6 +285,8 @@ def train_model(G, D, dataloader, num_epochs):
             d_out_fake, _ = D(fake_images)
 
             # 誤差を計算
+            label_real = label_real.type_as(d_out_real.view(-1))
+            label_fake = label_fake.type_as(d_out_fake.view(-1))
             d_loss_real = criterion(d_out_real.view(-1), label_real)
             d_loss_fake = criterion(d_out_fake.view(-1), label_fake)
             d_loss = d_loss_real + d_loss_fake
@@ -338,5 +340,4 @@ def train_model(G, D, dataloader, num_epochs):
 # 学習・検証を実行する
 # 8分ほどかかる
 num_epochs = 300
-G_update, D_update = train_model(
-    G, D, dataloader=train_dataloader, num_epochs=num_epochs)
+G_update, D_update = train_model(G, D, dataloader=train_dataloader, num_epochs=num_epochs)

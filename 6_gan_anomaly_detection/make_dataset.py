@@ -34,6 +34,10 @@ count7=0
 count8=0
 max_num=200  # 画像は200枚ずつ作成する
 
+# データの取り出し
+X = mnist.data
+y = mnist.target
+
 for i in range(len(X)):
 
     # 画像7の作成
