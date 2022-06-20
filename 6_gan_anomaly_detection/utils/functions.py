@@ -15,6 +15,10 @@ import torch.optim as optim
 
 from torchvision import transforms
 
+from tqdm import tqdm
+from collections import OrderedDict
+
+
 
 # Setup seeds
 torch.manual_seed(1234)
@@ -125,101 +129,96 @@ def train_model(G, D, dataloader, num_epochs):
     # イテレーションカウンタをセット
     iteration = 1
     logs = []
+    with tqdm(range(num_epochs)) as pbar:
+        # epochのループ
+        for epoch in pbar:
 
-    # epochのループ
-    for epoch in range(num_epochs):
+            # 開始時刻を保存
+            t_epoch_start = time.time()
+            epoch_g_loss = 0.0  # epochの損失和
+            epoch_d_loss = 0.0  # epochの損失和
 
-        # 開始時刻を保存
-        t_epoch_start = time.time()
-        epoch_g_loss = 0.0  # epochの損失和
-        epoch_d_loss = 0.0  # epochの損失和
+            pbar.set_description(f"[Epoch {epoch + 1} /{num_epochs}]")
 
-        if epoch % 10 == 0:
-          print('-------------')
-          print('Epoch {}/{}'.format(epoch, num_epochs))
-          print('-------------')
-          print('（train）')
+            # データローダーからminibatchずつ取り出すループ
+            for imges in dataloader:
 
-        # データローダーからminibatchずつ取り出すループ
-        for imges in dataloader:
+                # --------------------
+                # 1. Discriminatorの学習
+                # --------------------
+                # ミニバッチがサイズが1だと、バッチノーマライゼーションでエラーになるのでさける
+                if imges.size()[0] == 1:
+                    continue
 
-            # --------------------
-            # 1. Discriminatorの学習
-            # --------------------
-            # ミニバッチがサイズが1だと、バッチノーマライゼーションでエラーになるのでさける
-            if imges.size()[0] == 1:
-                continue
+                # GPUが使えるならGPUにデータを送る
+                imges = imges.to(device)
 
-            # GPUが使えるならGPUにデータを送る
-            imges = imges.to(device)
+                # 正解ラベルと偽ラベルを作成
+                # epochの最後のイテレーションはミニバッチの数が少なくなる
+                mini_batch_size = imges.size()[0]
+                label_real = torch.full((mini_batch_size,), 1).to(device)
+                label_fake = torch.full((mini_batch_size,), 0).to(device)
 
-            # 正解ラベルと偽ラベルを作成
-            # epochの最後のイテレーションはミニバッチの数が少なくなる
-            mini_batch_size = imges.size()[0]
-            label_real = torch.full((mini_batch_size,), 1).to(device)
-            label_fake = torch.full((mini_batch_size,), 0).to(device)
+                # 真の画像を判定
+                d_out_real, _ = D(imges)
 
-            # 真の画像を判定
-            d_out_real, _ = D(imges)
+                # 偽の画像を生成して判定
+                input_z = torch.randn(mini_batch_size, z_dim).to(device)
+                input_z = input_z.view(input_z.size(0), input_z.size(1), 1, 1)
+                fake_images = G(input_z)
+                d_out_fake, _ = D(fake_images)
 
-            # 偽の画像を生成して判定
-            input_z = torch.randn(mini_batch_size, z_dim).to(device)
-            input_z = input_z.view(input_z.size(0), input_z.size(1), 1, 1)
-            fake_images = G(input_z)
-            d_out_fake, _ = D(fake_images)
+                # 誤差を計算
+                label_real = label_real.type_as(d_out_real.view(-1))
+                label_fake = label_fake.type_as(d_out_fake.view(-1))
+                d_loss_real = criterion(d_out_real.view(-1), label_real)
+                d_loss_fake = criterion(d_out_fake.view(-1), label_fake)
+                d_loss = d_loss_real + d_loss_fake
 
-            # 誤差を計算
-            label_real = label_real.type_as(d_out_real.view(-1))
-            label_fake = label_fake.type_as(d_out_fake.view(-1))
-            d_loss_real = criterion(d_out_real.view(-1), label_real)
-            d_loss_fake = criterion(d_out_fake.view(-1), label_fake)
-            d_loss = d_loss_real + d_loss_fake
+                # バックプロパゲーション
+                g_optimizer.zero_grad()
+                d_optimizer.zero_grad()
 
-            # バックプロパゲーション
-            g_optimizer.zero_grad()
-            d_optimizer.zero_grad()
+                d_loss.backward()
+                d_optimizer.step()
 
-            d_loss.backward()
-            d_optimizer.step()
+                # --------------------
+                # 2. Generatorの学習
+                # --------------------
+                # 偽の画像を生成して判定
+                input_z = torch.randn(mini_batch_size, z_dim).to(device)
+                input_z = input_z.view(input_z.size(0), input_z.size(1), 1, 1)
+                fake_images = G(input_z)
+                d_out_fake, _ = D(fake_images)
 
-            # --------------------
-            # 2. Generatorの学習
-            # --------------------
-            # 偽の画像を生成して判定
-            input_z = torch.randn(mini_batch_size, z_dim).to(device)
-            input_z = input_z.view(input_z.size(0), input_z.size(1), 1, 1)
-            fake_images = G(input_z)
-            d_out_fake, _ = D(fake_images)
+                # 誤差を計算
+                g_loss = criterion(d_out_fake.view(-1), label_real)
 
-            # 誤差を計算
-            g_loss = criterion(d_out_fake.view(-1), label_real)
+                # バックプロパゲーション
+                g_optimizer.zero_grad()
+                d_optimizer.zero_grad()
+                g_loss.backward()
+                g_optimizer.step()
 
-            # バックプロパゲーション
-            g_optimizer.zero_grad()
-            d_optimizer.zero_grad()
-            g_loss.backward()
-            g_optimizer.step()
+                # --------------------
+                # 3. 記録
+                # --------------------
+                epoch_d_loss += d_loss.item()
+                epoch_g_loss += g_loss.item()
+                iteration += 1
 
-            # --------------------
-            # 3. 記録
-            # --------------------
-            epoch_d_loss += d_loss.item()
-            epoch_g_loss += g_loss.item()
-            iteration += 1
+            # epochのphaseごとのlossと正解率
+            t_epoch_finish = time.time()
 
-        # epochのphaseごとのlossと正解率
-        t_epoch_finish = time.time()
-        if epoch % 10 == 0:
-          print('-------------')
-          print('epoch {} || Epoch_D_Loss:{:.4f} ||Epoch_G_Loss:{:.4f}'.format(
-              epoch, epoch_d_loss/batch_size, epoch_g_loss/batch_size))
-          print('timer:  {:.4f} sec.'.format(t_epoch_finish - t_epoch_start))
-        t_epoch_start = time.time()
+            pbar.set_postfix(OrderedDict(timer=f"{t_epoch_finish - t_epoch_start:.4f}",
+                                            Epoch_D_Loss=f"{epoch_d_loss/batch_size:.4f}",
+                                            Epoch_G_Loss=f"{epoch_g_loss/batch_size:.4f}"),)
+            t_epoch_start = time.time()
 
 
-    print("総イテレーション回数:", iteration)
+        print("総イテレーション回数:", iteration)
 
-    return G, D
+        return G, D
 
 
 def efficient_make_datapath_list():
@@ -321,113 +320,110 @@ def efficient_train_model(G, D, E, dataloader, num_epochs):
     iteration = 1
     logs = []
 
+    with tqdm(range(num_epochs)) as pbar:
     # epochのループ
-    for epoch in range(num_epochs):
+        for epoch in pbar:
 
-        # 開始時刻を保存
-        t_epoch_start = time.time()
-        epoch_g_loss = 0.0  # epochの損失和
-        epoch_e_loss = 0.0  # epochの損失和
-        epoch_d_loss = 0.0  # epochの損失和
+            # 開始時刻を保存
+            t_epoch_start = time.time()
+            epoch_g_loss = 0.0  # epochの損失和
+            epoch_e_loss = 0.0  # epochの損失和
+            epoch_d_loss = 0.0  # epochの損失和
 
-        if epoch % 10 == 0:
-          print('-------------')
-          print('Epoch {}/{}'.format(epoch, num_epochs))
-          print('-------------')
-          print('（train）')
+            pbar.set_description(f"[Epoch {epoch + 1} /{num_epochs}]")
 
-        # データローダーからminibatchずつ取り出すループ
-        for imges in dataloader:
+            # データローダーからminibatchずつ取り出すループ
+            for imges in dataloader:
 
-            # ミニバッチがサイズが1だと、バッチノーマライゼーションでエラーになるのでさける
-            if imges.size()[0] == 1:
-                continue
+                # ミニバッチがサイズが1だと、バッチノーマライゼーションでエラーになるのでさける
+                if imges.size()[0] == 1:
+                    continue
 
-            # ミニバッチサイズの1もしくは0のラベル役のテンソルを作成
-            # 正解ラベルと偽ラベルを作成
-            # epochの最後のイテレーションはミニバッチの数が少なくなる
-            mini_batch_size = imges.size()[0]
-            label_real = torch.full((mini_batch_size,), 1).to(device)
-            label_fake = torch.full((mini_batch_size,), 0).to(device)
+                # ミニバッチサイズの1もしくは0のラベル役のテンソルを作成
+                # 正解ラベルと偽ラベルを作成
+                # epochの最後のイテレーションはミニバッチの数が少なくなる
+                mini_batch_size = imges.size()[0]
+                label_real = torch.full((mini_batch_size,), 1).to(device)
+                label_fake = torch.full((mini_batch_size,), 0).to(device)
 
-            # GPUが使えるならGPUにデータを送る
-            imges = imges.to(device)
+                # GPUが使えるならGPUにデータを送る
+                imges = imges.to(device)
 
-            # --------------------
-            # 1. Discriminatorの学習
-            # --------------------
-            # 真の画像を判定　
-            z_out_real = E(imges)
-            d_out_real, _ = D(imges, z_out_real)
+                # --------------------
+                # 1. Discriminatorの学習
+                # --------------------
+                # 真の画像を判定　
+                z_out_real = E(imges)
+                d_out_real, _ = D(imges, z_out_real)
 
-            # 偽の画像を生成して判定
-            input_z = torch.randn(mini_batch_size, z_dim).to(device)
-            fake_images = G(input_z)
-            d_out_fake, _ = D(fake_images, input_z)
+                # 偽の画像を生成して判定
+                input_z = torch.randn(mini_batch_size, z_dim).to(device)
+                fake_images = G(input_z)
+                d_out_fake, _ = D(fake_images, input_z)
 
-            # 誤差を計算
-            label_real = label_real.type_as(d_out_real.view(-1))
-            label_fake = label_fake.type_as(d_out_fake.view(-1))
-            d_loss_real = criterion(d_out_real.view(-1), label_real)
-            d_loss_fake = criterion(d_out_fake.view(-1), label_fake)
-            d_loss = d_loss_real + d_loss_fake
+                # 誤差を計算
+                label_real = label_real.type_as(d_out_real.view(-1))
+                label_fake = label_fake.type_as(d_out_fake.view(-1))
+                d_loss_real = criterion(d_out_real.view(-1), label_real)
+                d_loss_fake = criterion(d_out_fake.view(-1), label_fake)
+                d_loss = d_loss_real + d_loss_fake
 
-            # バックプロパゲーション
-            d_optimizer.zero_grad()
-            d_loss.backward()
-            d_optimizer.step()
+                # バックプロパゲーション
+                d_optimizer.zero_grad()
+                d_loss.backward()
+                d_optimizer.step()
 
-            # --------------------
-            # 2. Generatorの学習
-            # --------------------
-            # 偽の画像を生成して判定
-            input_z = torch.randn(mini_batch_size, z_dim).to(device)
-            fake_images = G(input_z)
-            d_out_fake, _ = D(fake_images, input_z)
+                # --------------------
+                # 2. Generatorの学習
+                # --------------------
+                # 偽の画像を生成して判定
+                input_z = torch.randn(mini_batch_size, z_dim).to(device)
+                fake_images = G(input_z)
+                d_out_fake, _ = D(fake_images, input_z)
 
-            # 誤差を計算
-            g_loss = criterion(d_out_fake.view(-1), label_real)
+                # 誤差を計算
+                g_loss = criterion(d_out_fake.view(-1), label_real)
 
-            # バックプロパゲーション
-            g_optimizer.zero_grad()
-            g_loss.backward()
-            g_optimizer.step()
+                # バックプロパゲーション
+                g_optimizer.zero_grad()
+                g_loss.backward()
+                g_optimizer.step()
 
-            # --------------------
-            # 3. Encoderの学習
-            # --------------------
-            # 真の画像のzを推定
-            z_out_real = E(imges)
-            d_out_real, _ = D(imges, z_out_real)
+                # --------------------
+                # 3. Encoderの学習
+                # --------------------
+                # 真の画像のzを推定
+                z_out_real = E(imges)
+                d_out_real, _ = D(imges, z_out_real)
 
-            # 誤差を計算
-            e_loss = criterion(d_out_real.view(-1), label_fake)
+                # 誤差を計算
+                e_loss = criterion(d_out_real.view(-1), label_fake)
 
-            # バックプロパゲーション
-            e_optimizer.zero_grad()
-            e_loss.backward()
-            e_optimizer.step()
+                # バックプロパゲーション
+                e_optimizer.zero_grad()
+                e_loss.backward()
+                e_optimizer.step()
 
-            # --------------------
-            # 4. 記録
-            # --------------------
-            epoch_d_loss += d_loss.item()
-            epoch_g_loss += g_loss.item()
-            epoch_e_loss += e_loss.item()
-            iteration += 1
+                # --------------------
+                # 4. 記録
+                # --------------------
+                epoch_d_loss += d_loss.item()
+                epoch_g_loss += g_loss.item()
+                epoch_e_loss += e_loss.item()
+                iteration += 1
 
-        # epochのphaseごとのlossと正解率
-        t_epoch_finish = time.time()
-        if epoch % 10 == 0:
-          print('-------------')
-          print('epoch {} || Epoch_D_Loss:{:.4f} ||Epoch_G_Loss:{:.4f} ||Epoch_E_Loss:{:.4f}'.format(
-              epoch, epoch_d_loss/batch_size, epoch_g_loss/batch_size, epoch_e_loss/batch_size))
-          print('timer:  {:.4f} sec.'.format(t_epoch_finish - t_epoch_start))
-        t_epoch_start = time.time()
+            # epochのphaseごとのlossと正解率
+            t_epoch_finish = time.time()
 
-    print("総イテレーション回数:", iteration)
+            pbar.set_postfix(OrderedDict(timer=f"{t_epoch_finish - t_epoch_start:.4f}",
+                                         Epoch_D_Loss=f"{epoch_d_loss/batch_size:.4f}",
+                                         Epoch_G_Loss=f"{epoch_g_loss/batch_size:.4f}"),
+                                         Epoch_E_Loss=f"{epoch_e_loss/batch_size:.4f}",)
+            t_epoch_start = time.time()
 
-    return G, D, E
+        print("総イテレーション回数:", iteration)
+
+        return G, D, E
 
 
 # ネットワークの初期化
