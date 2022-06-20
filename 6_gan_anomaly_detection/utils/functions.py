@@ -103,6 +103,12 @@ def train_model(G, D, dataloader, num_epochs):
     mini_batch_size = 64
 
     # ネットワークをGPUへ
+    if torch.cuda.device_count()>1:
+      # 複数枚使える時複数枚使う
+        print("Let's use {} GPUs".format(torch.cuda.device_count()))
+        G = nn.DataParallel(G)
+        D = nn.DataParallel(D)
+
     G.to(device)
     D.to(device)
 
@@ -128,10 +134,11 @@ def train_model(G, D, dataloader, num_epochs):
         epoch_g_loss = 0.0  # epochの損失和
         epoch_d_loss = 0.0  # epochの損失和
 
-        print('-------------')
-        print('Epoch {}/{}'.format(epoch, num_epochs))
-        print('-------------')
-        print('（train）')
+        if epoch // 10 == 0:
+          print('-------------')
+          print('Epoch {}/{}'.format(epoch, num_epochs))
+          print('-------------')
+          print('（train）')
 
         # データローダーからminibatchずつ取り出すループ
         for imges in dataloader:
@@ -202,10 +209,11 @@ def train_model(G, D, dataloader, num_epochs):
 
         # epochのphaseごとのlossと正解率
         t_epoch_finish = time.time()
-        print('-------------')
-        print('epoch {} || Epoch_D_Loss:{:.4f} ||Epoch_G_Loss:{:.4f}'.format(
-            epoch, epoch_d_loss/batch_size, epoch_g_loss/batch_size))
-        print('timer:  {:.4f} sec.'.format(t_epoch_finish - t_epoch_start))
+        if epoch // 10 == 0:
+          print('-------------')
+          print('epoch {} || Epoch_D_Loss:{:.4f} ||Epoch_G_Loss:{:.4f}'.format(
+              epoch, epoch_d_loss/batch_size, epoch_g_loss/batch_size))
+          print('timer:  {:.4f} sec.'.format(t_epoch_finish - t_epoch_start))
         t_epoch_start = time.time()
 
 
@@ -287,6 +295,13 @@ def efficient_train_model(G, D, E, dataloader, num_epochs):
     mini_batch_size = 64
 
     # ネットワークをGPUへ
+    if torch.cuda.device_count()>1:
+      # 複数枚使える時複数枚使う
+        print("Let's use {} GPUs".format(torch.cuda.device_count()))
+        G = nn.DataParallel(G)
+        E = nn.DataParallel(E)
+        D = nn.DataParallel(D)
+
     G.to(device)
     E.to(device)
     D.to(device)
@@ -315,10 +330,11 @@ def efficient_train_model(G, D, E, dataloader, num_epochs):
         epoch_e_loss = 0.0  # epochの損失和
         epoch_d_loss = 0.0  # epochの損失和
 
-        print('-------------')
-        print('Epoch {}/{}'.format(epoch, num_epochs))
-        print('-------------')
-        print('（train）')
+        if epoch // 10 == 0:
+          print('-------------')
+          print('Epoch {}/{}'.format(epoch, num_epochs))
+          print('-------------')
+          print('（train）')
 
         # データローダーからminibatchずつ取り出すループ
         for imges in dataloader:
@@ -402,10 +418,11 @@ def efficient_train_model(G, D, E, dataloader, num_epochs):
 
         # epochのphaseごとのlossと正解率
         t_epoch_finish = time.time()
-        print('-------------')
-        print('epoch {} || Epoch_D_Loss:{:.4f} ||Epoch_G_Loss:{:.4f} ||Epoch_E_Loss:{:.4f}'.format(
-            epoch, epoch_d_loss/batch_size, epoch_g_loss/batch_size, epoch_e_loss/batch_size))
-        print('timer:  {:.4f} sec.'.format(t_epoch_finish - t_epoch_start))
+        if epoch // 10 == 0:
+          print('-------------')
+          print('epoch {} || Epoch_D_Loss:{:.4f} ||Epoch_G_Loss:{:.4f} ||Epoch_E_Loss:{:.4f}'.format(
+              epoch, epoch_d_loss/batch_size, epoch_g_loss/batch_size, epoch_e_loss/batch_size))
+          print('timer:  {:.4f} sec.'.format(t_epoch_finish - t_epoch_start))
         t_epoch_start = time.time()
 
     print("総イテレーション回数:", iteration)
