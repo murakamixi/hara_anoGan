@@ -134,7 +134,7 @@ def train_model(G, D, dataloader, num_epochs):
         epoch_g_loss = 0.0  # epochの損失和
         epoch_d_loss = 0.0  # epochの損失和
 
-        if epoch // 10 == 0:
+        if epoch % 10 == 0:
           print('-------------')
           print('Epoch {}/{}'.format(epoch, num_epochs))
           print('-------------')
@@ -209,7 +209,7 @@ def train_model(G, D, dataloader, num_epochs):
 
         # epochのphaseごとのlossと正解率
         t_epoch_finish = time.time()
-        if epoch // 10 == 0:
+        if epoch % 10 == 0:
           print('-------------')
           print('epoch {} || Epoch_D_Loss:{:.4f} ||Epoch_G_Loss:{:.4f}'.format(
               epoch, epoch_d_loss/batch_size, epoch_g_loss/batch_size))
@@ -330,7 +330,7 @@ def efficient_train_model(G, D, E, dataloader, num_epochs):
         epoch_e_loss = 0.0  # epochの損失和
         epoch_d_loss = 0.0  # epochの損失和
 
-        if epoch // 10 == 0:
+        if epoch % 10 == 0:
           print('-------------')
           print('Epoch {}/{}'.format(epoch, num_epochs))
           print('-------------')
@@ -418,7 +418,7 @@ def efficient_train_model(G, D, E, dataloader, num_epochs):
 
         # epochのphaseごとのlossと正解率
         t_epoch_finish = time.time()
-        if epoch // 10 == 0:
+        if epoch % 10 == 0:
           print('-------------')
           print('epoch {} || Epoch_D_Loss:{:.4f} ||Epoch_G_Loss:{:.4f} ||Epoch_E_Loss:{:.4f}'.format(
               epoch, epoch_d_loss/batch_size, epoch_g_loss/batch_size, epoch_e_loss/batch_size))
