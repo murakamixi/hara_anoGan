@@ -17,7 +17,9 @@ np.random.seed(1234)
 random.seed(1234)
 
 # 動作確認
-# import matplotlib.pyplot as plt
+# DataLoaderを作成
+batch_size = 64
+num_epochs = 1500
 
 G = models.EfficientGenerator(z_dim=20)
 G.train()
@@ -28,8 +30,6 @@ D = models.EfficientDiscriminator(z_dim=20)
 # 動作確認
 E = models.EfficientEncoder(z_dim=20)
 
-# DataLoaderの作成と動作確認
-
 # ファイルリストを作成
 train_img_list=functions.efficient_make_datapath_list()
 
@@ -38,9 +38,6 @@ mean = (0.5,)
 std = (0.5,)
 train_dataset = preprocessing.Efficient_GAN_Img_Dataset(
     file_list=train_img_list, transform=preprocessing.EfficientImageTransform(mean, std))
-
-# DataLoaderを作成
-batch_size = 64
 
 train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
@@ -55,5 +52,4 @@ print("ネットワークの初期化完了")
 
 # 学習・検証を実行する
 # 15分ほどかかる
-num_epochs = 1500
 G_update, D_update, E_update = functions.efficient_train_model(G, D, E, dataloader=train_dataloader, num_epochs=num_epochs)
