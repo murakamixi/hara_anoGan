@@ -1,19 +1,10 @@
 # パッケージのimport
 import random
-import math
 import time
-from zlib import Z_DEFAULT_STRATEGY
-import pandas as pd
 import numpy as np
-from PIL import Image
 
 import torch
-import torch.utils.data as data
 import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-
-from torchvision import transforms
 
 from tqdm import tqdm
 from collections import OrderedDict
@@ -39,40 +30,6 @@ def make_datapath_list():
 
     return train_img_list
 
-class ImageTransform():
-    """画像の前処理クラス"""
-
-    def __init__(self, mean, std):
-        self.data_transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize(mean, std)
-        ])
-
-    def __call__(self, img):
-        return self.data_transform(img)
-
-
-class GAN_Img_Dataset(data.Dataset):
-    """画像のDatasetクラス。PyTorchのDatasetクラスを継承"""
-
-    def __init__(self, file_list, transform):
-        self.file_list = file_list
-        self.transform = transform
-
-    def __len__(self):
-        '''画像の枚数を返す'''
-        return len(self.file_list)
-
-    def __getitem__(self, index):
-        '''前処理をした画像のTensor形式のデータを取得'''
-
-        img_path = self.file_list[index]
-        img = Image.open(img_path)  # [高さ][幅]白黒
-
-        # 画像の前処理
-        img_transformed = self.transform(img)
-
-        return img_transformed
 
 # ネットワークの初期化
 def weights_init(m):
@@ -90,7 +47,7 @@ def weights_init(m):
 def train_model(G, D, dataloader, num_epochs):
 
     # GPUが使えるかを確認
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("使用デバイス：", device)
 
     # 最適化手法の設定
@@ -108,7 +65,7 @@ def train_model(G, D, dataloader, num_epochs):
 
     # ネットワークをGPUへ
     if torch.cuda.device_count()>1:
-      # 複数枚使える時複数枚使う
+        # 複数枚使える時複数枚使う
         print("Let's use {} GPUs".format(torch.cuda.device_count()))
         G = nn.DataParallel(G)
         D = nn.DataParallel(D)
@@ -235,45 +192,11 @@ def efficient_make_datapath_list():
 
     return train_img_list
 
-class EfficientImageTransform():
-    """画像の前処理クラス"""
-
-    def __init__(self, mean, std):
-        self.data_transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize(mean, std)
-        ])
-
-    def __call__(self, img):
-        return self.data_transform(img)
-
-
-class Efficient_GAN_Img_Dataset(data.Dataset):
-    """画像のDatasetクラス。PyTorchのDatasetクラスを継承"""
-
-    def __init__(self, file_list, transform):
-        self.file_list = file_list
-        self.transform = transform
-
-    def __len__(self):
-        '''画像の枚数を返す'''
-        return len(self.file_list)
-
-    def __getitem__(self, index):
-        '''前処理をした画像のTensor形式のデータを取得'''
-
-        img_path = self.file_list[index]
-        img = Image.open(img_path)  # [高さ][幅]白黒
-
-        # 画像の前処理
-        img_transformed = self.transform(img)
-
-        return img_transformed
 
 def efficient_train_model(G, D, E, dataloader, num_epochs):
 
     # GPUが使えるかを確認
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("使用デバイス：", device)
 
     # 最適化手法の設定
