@@ -90,7 +90,7 @@ def weights_init(m):
 def train_model(G, D, dataloader, num_epochs):
 
     # GPUが使えるかを確認
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("使用デバイス：", device)
 
     # 最適化手法の設定
@@ -108,7 +108,7 @@ def train_model(G, D, dataloader, num_epochs):
 
     # ネットワークをGPUへ
     if torch.cuda.device_count()>1:
-      # 複数枚使える時複数枚使う
+        # 複数枚使える時複数枚使う
         print("Let's use {} GPUs".format(torch.cuda.device_count()))
         G = nn.DataParallel(G)
         D = nn.DataParallel(D)
@@ -273,7 +273,7 @@ class Efficient_GAN_Img_Dataset(data.Dataset):
 def efficient_train_model(G, D, E, dataloader, num_epochs):
 
     # GPUが使えるかを確認
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("使用デバイス：", device)
 
     # 最適化手法の設定
