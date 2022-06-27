@@ -16,6 +16,7 @@ from torchvision import transforms
 
 import utils.models as models
 import utils.functions as functions
+import utils.preprocessing as preprocessing
 
 
 # Setup seeds
@@ -34,7 +35,7 @@ train_img_list=functions.make_datapath_list()
 # Datasetを作成
 mean = (0.5,)
 std = (0.5,)
-train_dataset = functions.GAN_Img_Dataset(file_list=train_img_list, transform=functions.ImageTransform(mean, std))
+train_dataset = preprocessing.GAN_Img_Dataset(file_list=train_img_list, transform=preprocessing.ImageTransform(mean, std))
 
 # DataLoaderを作成
 batch_size = 64
