@@ -1,18 +1,8 @@
 # パッケージのimport
 import random
-import math
-import time
-import pandas as pd
 import numpy as np
-from PIL import Image
 
 import torch
-import torch.utils.data as data
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-
-from torchvision import transforms
 
 import utils.models as models
 import utils.functions as functions
@@ -45,7 +35,6 @@ train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_s
 # 動作の確認
 batch_iterator = iter(train_dataloader)  # イテレータに変換
 imges = next(batch_iterator)  # 1番目の要素を取り出す
-# print(imges.size())  # torch.Size([64, 1, 64, 64])
 
 # 初期化の実施
 G.apply(functions.weights_init)
